@@ -89,7 +89,7 @@ if df_summary.empty:
     st.stop()
 
 # Debug: Option to show raw data if things go wrong
-with st.sidebar.expander("🛠️ Debug: Raw Data"):
+with st.sidebar.expander("📄 Raw data preview"):
     st.write("Summary Data Head:", df_summary.head())
     st.write("Expenditure Data Head:", df_expenditure.head())
 
@@ -132,14 +132,18 @@ def create_bar_chart(df, category_query, title, sort_order=None, height=300):
     
     st.altair_chart(chart, use_container_width=True)
 
-def create_subset_chart(df, items_list, title, metric_type):
+def create_subset_chart(df, items_list, title, metric_type, exact=False):
     item_col = next((c for c in df.columns if 'item' in c.lower()), None)
     if not item_col: return
     
     # Robust Filtering: Check if ANY keyword is in the item name
     # We join keywords with '|' for regex OR logic
-    pattern = '|'.join(items_list)
-    mask = df[item_col].astype(str).str.contains(pattern, case=False, regex=True)
+    if exact:
+        mask = df[item_col].astype(str).isin(items_list)
+    else:
+        # Match keywords at the start of a word only (e.g. 'Sport' must not match 'Transportation')
+        pattern = r'\b(?:' + '|'.join(items_list) + ')'
+        mask = df[item_col].astype(str).str.contains(pattern, case=False, regex=True)
     data = df[mask].copy()
     
     if data.empty:
@@ -204,7 +208,7 @@ with tab2:
     
     st.subheader("Main Purpose of Visit")
     create_bar_chart(df_summary, 'purpose', "Purpose Breakdown", height=400)
-    st.info("💡 **Insight:** Note the high percentage of **'Other Business'** and **'Training'**. UK tourists are not just leisure travelers; many are here for business.")
+    st.info("💡 **Insight:** UK visitors travel for **'Other Business'** (31% vs 20% overall) and **'Corporate Meetings'** (13% vs 6%) far more than average. They are not just leisure travellers; many are here for business.")
     
     st.markdown("---")
     col1, col2 = st.columns(2)
@@ -235,7 +239,7 @@ with tab3:
             # Show top 10 items
             df_top = df_expenditure.sort_values(uk_rate_cols[0], ascending=False).head(10)
             top_items = df_top[item_col].astype(str).tolist()
-            create_subset_chart(df_expenditure, top_items, "Top 10 Participation Rates", "Rate")
+            create_subset_chart(df_expenditure, top_items, "Top 10 Participation Rates", "Rate", exact=True)
 
         st.markdown("---")
 
@@ -258,6 +262,6 @@ with tab4:
     st.markdown("""
     ### **Strategic Recommendations**
     1.  **Target the Wealthy:** Data shows UK tourists are asset-rich. Pitch premium services.
-    2.  **Sell Culture, Not Cosmetics:** They buy "Folk Crafts" & "Kimono rentals" more than cosmetics.
+    2.  **Sell Culture, Not Cosmetics:** 20% of UK visitors buy traditional crafts (vs 7% overall), while only 7% buy cosmetics (vs 19% overall).
     3.  **Long-Stay Hubs:** Promote Haneda + Luxury Hotel as a base for 2-week cultural explorations.
     """)
